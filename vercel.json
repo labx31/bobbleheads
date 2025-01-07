@@ -6,11 +6,11 @@
         "use": "@vercel/node"
       },
       {
-        "src": "index.html",
+        "src": "*.html",
         "use": "@vercel/static"
       },
       {
-        "src": "styles.css",
+        "src": "*.css",
         "use": "@vercel/static"
       }
     ],
@@ -20,9 +20,12 @@
         "dest": "/api/generate.js"
       },
       {
+        "src": "/styles.css",
+        "dest": "/styles.css"
+      },
+      {
         "src": "/(.*)",
         "dest": "/index.html"
       }
     ]
   }
-  
