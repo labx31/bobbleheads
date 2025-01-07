@@ -5,6 +5,7 @@
     "build": "echo 'No build step needed.'"
   },
   "dependencies": {
-    "replicate": "1.0.1"
+    "replicate": "1.0.1",
+    "formidable": "^2.1.1"
   }
 }
