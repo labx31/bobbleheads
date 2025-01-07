@@ -88,7 +88,7 @@ export default async function handler(req, res) {
     }
 
     return res.status(200).json({ images: output });
-
+// dummy comment
   } catch (error) {
     console.error("Error in generate endpoint:", error);
     return res.status(500).json({ 
