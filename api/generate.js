@@ -8,10 +8,6 @@ export const config = {
   },
 };
 
-if (!process.env.REPLICATE_API_TOKEN) {
-  console.error("REPLICATE_API_TOKEN is not set");
-}
-
 const replicate = new Replicate({
   auth: process.env.REPLICATE_API_TOKEN,
 });
@@ -51,8 +47,9 @@ export default async function handler(req, res) {
     });
 
     const filePath = file.filepath;
+    // Convert file to base64
     const fileBuffer = fs.readFileSync(filePath);
-    console.log("File buffer size:", fileBuffer.length);
+    const base64Image = `data:${file.mimetype};base64,${fileBuffer.toString('base64')}`;
 
     console.log("Calling Replicate API...");
     const output = await replicate.run(
@@ -62,7 +59,7 @@ export default async function handler(req, res) {
           prompt: "Full body bobblehead on display stand, tiny body with oversized head, collectible toy photography, full figure visible from head to toe, standing pose, detailed facial features, solid white background, 3D rendered, glossy finish, img",
           num_steps: 45,
           style_name: "(No style)",
-          input_image: fileBuffer,
+          input_image: base64Image,  // Send as base64 data URI
           num_outputs: 1,
           guidance_scale: 8,
           negative_prompt: "cropped, partial figure, headshot only, bust only, shoulders only, cutoff body, realistic proportions, photorealistic, blurry, distorted features, double head, low quality, grainy, multiple heads, text, watermark",
@@ -71,44 +68,21 @@ export default async function handler(req, res) {
       }
     );
 
-    console.log("Replicate API Raw Output:", output);
-    
-    // Handle if output is a ReadableStream
-    if (output && output[0] && output[0].constructor.name === 'ReadableStream') {
-      // Convert stream to string
-      const reader = output[0].getReader();
-      let result = '';
-      
-      while (true) {
-        const {done, value} = await reader.read();
-        if (done) break;
-        result += new TextDecoder().decode(value);
-      }
-      
-      try {
-        // Try to parse the result as JSON if it's a string
-        const parsedResult = JSON.parse(result);
-        console.log("Parsed stream result:", parsedResult);
-        return res.status(200).json({ images: parsedResult });
-      } catch (e) {
-        // If it's not JSON, assume it's a URL string
-        console.log("Stream result as URL:", result);
-        return res.status(200).json({ images: [result] });
-      }
+    console.log("Replicate API Response:", output);
+
+    // Cleanup temp file
+    try {
+      fs.unlinkSync(filePath);
+    } catch (cleanupError) {
+      console.error("Error cleaning up temp file:", cleanupError);
     }
 
-    // Handle regular array response
-    if (Array.isArray(output)) {
-      console.log("Array output:", output);
-      return res.status(200).json({ images: output });
+    if (!output || !Array.isArray(output)) {
+      console.error("Invalid output format:", output);
+      throw new Error("Invalid response from image generation API");
     }
 
-    // If we get here, something unexpected happened
-    console.error("Unexpected output format:", output);
-    return res.status(500).json({ 
-      error: "Unexpected response format from image generation API",
-      details: output 
-    });
+    return res.status(200).json({ images: output });
 
   } catch (error) {
     console.error("Error in generate endpoint:", error);
