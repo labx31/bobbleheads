@@ -59,6 +59,10 @@ export default async function handler(req, res) {
       { input }
     );
     console.log("Model output:", output);
+    
+    if (!output || !Array.isArray(output) || output.length === 0) {
+        throw new Error("No output received from model");
+    }
 
     // Cleanup temp file
     fs.unlinkSync(filePath);

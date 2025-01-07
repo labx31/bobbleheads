@@ -82,11 +82,13 @@
                 }
 
                 const data = await response.json();
+                console.log("API Response:", data);
                 
                 if (!data.images || data.images.length === 0) {
                     throw new Error("No images were generated");
                 }
 
+                console.log("Generated image URLs:", data.images);
                 data.images.forEach((url) => {
                     const imgEl = document.createElement("img");
                     imgEl.src = url;
@@ -100,6 +102,16 @@
                 const errorMessage = err.message || "Error generating image. Please try again.";
                 feedback.textContent = errorMessage;
                 console.error("Error details:", err);
+                
+                // If we got a response from the server, log its content
+                if (err.response) {
+                    try {
+                        const errorText = await err.response.text();
+                        console.error("Server error response:", errorText);
+                    } catch (e) {
+                        console.error("Could not read error response");
+                    }
+                }
             } finally {
                 loader.classList.add("hidden");
             }
