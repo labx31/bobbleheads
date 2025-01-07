@@ -1,7 +1,7 @@
 {
     "functions": {
       "api/generate.js": {
-        "runtime": "vercel/node"
+        "runtime": "nodejs18.x"
       }
     },
     "buildCommand": "npm run vercel-build",
