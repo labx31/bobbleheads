@@ -1,118 +1,135 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <title>Bobblehead Generator</title>
-  <link rel="stylesheet" href="styles.css" />
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bobblehead Generator</title>
+    <link rel="stylesheet" href="styles.css">
 </head>
 <body>
-  <div class="container">
-    <h1>Bobblehead Generator</h1>
-    <p>Upload an image (or take a selfie), then click "Generate"!</p>
+    <div class="container">
+        <h1>Bobblehead Generator</h1>
+        <p>Upload an image (or take a selfie), then click "Generate"!</p>
 
-    <!-- Our upload form -->
-    <form id="uploadForm" enctype="multipart/form-data" method="post">
-      <div class="input-section">
-        <label for="imageUpload">Choose Image (or selfie)</label>
-        <input 
-          type="file"
-          id="imageUpload"
-          name="imageUpload"
-          accept="image/*"
-          capture="user"  <!-- enables camera on mobile -->
-        />
-      </div>
+        <form id="uploadForm" enctype="multipart/form-data">
+            <div class="input-section">
+                <label for="imageUpload">Choose Image (or selfie)</label>
+                <input 
+                    type="file"
+                    id="imageUpload"
+                    name="imageUpload"
+                    accept="image/*"
+                    capture="user"
+                    class="file-input"
+                />
+                <div id="imagePreview" class="image-preview hidden"></div>
+            </div>
 
-      <div class="input-section">
-        <label for="prompt">Prompt (optional)</label>
-        <input
-          type="text"
-          id="prompt"
-          name="prompt"
-          placeholder="A photo of a person img"
-        />
-      </div>
+            <div class="input-section">
+                <label for="prompt">Prompt (optional)</label>
+                <input
+                    type="text"
+                    id="prompt"
+                    name="prompt"
+                    placeholder="A photo of a person img"
+                />
+            </div>
 
-      <div class="input-section">
-        <label for="styleName">Style</label>
-        <select id="styleName" name="styleName">
-          <option value="(No style)">(No style)</option>
-          <option value="Cinematic">Cinematic</option>
-          <option value="Disney Charactor">Disney Character</option>
-          <option value="Digital Art">Digital Art</option>
-          <option value="Photographic (Default)">Photographic (Default)</option>
-          <option value="Fantasy art">Fantasy art</option>
-          <option value="Neonpunk">Neonpunk</option>
-          <option value="Enhance">Enhance</option>
-          <option value="Comic book">Comic book</option>
-          <option value="Lowpoly">Lowpoly</option>
-          <option value="Line art">Line art</option>
-        </select>
-      </div>
+            <div class="input-section">
+                <label for="styleName">Style</label>
+                <select id="styleName" name="styleName">
+                    <option value="(No style)">(No style)</option>
+                    <option value="Cinematic">Cinematic</option>
+                    <option value="Disney Character">Disney Character</option>
+                    <option value="Digital Art">Digital Art</option>
+                    <option value="Photographic (Default)">Photographic (Default)</option>
+                    <option value="Fantasy art">Fantasy art</option>
+                    <option value="Neonpunk">Neonpunk</option>
+                    <option value="Enhance">Enhance</option>
+                    <option value="Comic book">Comic book</option>
+                    <option value="Lowpoly">Lowpoly</option>
+                    <option value="Line art">Line art</option>
+                </select>
+            </div>
 
-      <button type="submit">Generate</button>
-    </form>
+            <button type="submit">Generate</button>
+        </form>
 
-    <div id="loader" class="loader hidden"></div>
-    <p id="feedback"></p>
-    <div id="result"></div>
-  </div>
+        <div id="loader" class="loader hidden"></div>
+        <p id="feedback" class="feedback"></p>
+        <div id="result" class="result"></div>
+    </div>
 
-  <script>
-    const form = document.getElementById("uploadForm");
-    const loader = document.getElementById("loader");
-    const feedback = document.getElementById("feedback");
-    const result = document.getElementById("result");
+    <script>
+        const form = document.getElementById("uploadForm");
+        const loader = document.getElementById("loader");
+        const feedback = document.getElementById("feedback");
+        const result = document.getElementById("result");
+        const imagePreview = document.getElementById("imagePreview");
+        const imageUpload = document.getElementById("imageUpload");
 
-    form.addEventListener("submit", async (e) => {
-      e.preventDefault();
-
-      // Clear feedback / result
-      feedback.textContent = "";
-      result.innerHTML = "";
-
-      // Basic check
-      const fileInput = document.getElementById("imageUpload");
-      if (!fileInput.files[0]) {
-        alert("Please select an image first.");
-        return;
-      }
-
-      loader.classList.remove("hidden");
-      feedback.textContent = "Generating your bobblehead...";
-
-      try {
-        // Build multipart form data
-        const formData = new FormData(form);
-
-        // POST to /api/generate
-        const response = await fetch("/api/generate", {
-          method: "POST",
-          body: formData,
+        // Image preview functionality
+        imageUpload.addEventListener("change", function() {
+            const file = this.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    imagePreview.innerHTML = `<img src="${e.target.result}" alt="Preview" class="preview-img">`;
+                    imagePreview.classList.remove("hidden");
+                }
+                reader.readAsDataURL(file);
+            }
         });
 
-        if (!response.ok) {
-          throw new Error("Server returned a non-OK response.");
-        }
+        form.addEventListener("submit", async (e) => {
+            e.preventDefault();
 
-        const { images } = await response.json();
-        // Display generated images
-        images.forEach((url) => {
-          const imgEl = document.createElement("img");
-          imgEl.src = url;
-          imgEl.alt = "Generated Bobblehead";
-          imgEl.className = "output-image";
-          result.appendChild(imgEl);
+            // Basic validation
+            const fileInput = document.getElementById("imageUpload");
+            if (!fileInput.files[0]) {
+                alert("Please select an image first.");
+                return;
+            }
+
+            // Clear previous results
+            result.innerHTML = "";
+            feedback.textContent = "";
+            
+            // Show loading state
+            loader.classList.remove("hidden");
+            feedback.textContent = "Generating your bobblehead...";
+
+            try {
+                const formData = new FormData(form);
+
+                const response = await fetch("/api/generate", {
+                    method: "POST",
+                    body: formData,
+                });
+
+                if (!response.ok) {
+                    throw new Error("Server returned a non-OK response.");
+                }
+
+                const data = await response.json();
+                
+                // Display generated images
+                data.images.forEach((url) => {
+                    const imgEl = document.createElement("img");
+                    imgEl.src = url;
+                    imgEl.alt = "Generated Bobblehead";
+                    imgEl.className = "output-image";
+                    result.appendChild(imgEl);
+                });
+
+                feedback.textContent = "Done!";
+            } catch (err) {
+                feedback.textContent = "Error generating image. Please try again.";
+                console.error(err);
+            } finally {
+                loader.classList.add("hidden");
+            }
         });
-
-        feedback.textContent = "Done!";
-      } catch (err) {
-        feedback.textContent = "Error generating image.";
-        console.error(err);
-      } finally {
-        loader.classList.add("hidden");
-      }
-    });
-  </script>
+    </script>
 </body>
 </html>
