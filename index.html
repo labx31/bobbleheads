@@ -25,33 +25,6 @@
                 <div id="imagePreview" class="image-preview hidden"></div>
             </div>
 
-            <div class="input-section">
-                <label for="prompt">Prompt (optional)</label>
-                <input
-                    type="text"
-                    id="prompt"
-                    name="prompt"
-                    placeholder="A photo of a person img"
-                />
-            </div>
-
-            <div class="input-section">
-                <label for="styleName">Style</label>
-                <select id="styleName" name="styleName">
-                    <option value="(No style)">(No style)</option>
-                    <option value="Cinematic">Cinematic</option>
-                    <option value="Disney Character">Disney Character</option>
-                    <option value="Digital Art">Digital Art</option>
-                    <option value="Photographic (Default)">Photographic (Default)</option>
-                    <option value="Fantasy art">Fantasy art</option>
-                    <option value="Neonpunk">Neonpunk</option>
-                    <option value="Enhance">Enhance</option>
-                    <option value="Comic book">Comic book</option>
-                    <option value="Lowpoly">Lowpoly</option>
-                    <option value="Line art">Line art</option>
-                </select>
-            </div>
-
             <button type="submit">Generate</button>
         </form>
 
@@ -84,23 +57,20 @@
         form.addEventListener("submit", async (e) => {
             e.preventDefault();
 
-            // Basic validation
             const fileInput = document.getElementById("imageUpload");
             if (!fileInput.files[0]) {
                 alert("Please select an image first.");
                 return;
             }
 
-            // Clear previous results
             result.innerHTML = "";
             feedback.textContent = "";
-            
-            // Show loading state
             loader.classList.remove("hidden");
             feedback.textContent = "Generating your bobblehead...";
 
             try {
-                const formData = new FormData(form);
+                const formData = new FormData();
+                formData.append('imageUpload', fileInput.files[0]);
 
                 const response = await fetch("/api/generate", {
                     method: "POST",
@@ -113,7 +83,10 @@
 
                 const data = await response.json();
                 
-                // Display generated images
+                if (!data.images || data.images.length === 0) {
+                    throw new Error("No images were generated");
+                }
+
                 data.images.forEach((url) => {
                     const imgEl = document.createElement("img");
                     imgEl.src = url;
@@ -124,8 +97,9 @@
 
                 feedback.textContent = "Done!";
             } catch (err) {
-                feedback.textContent = "Error generating image. Please try again.";
-                console.error(err);
+                const errorMessage = err.message || "Error generating image. Please try again.";
+                feedback.textContent = errorMessage;
+                console.error("Error details:", err);
             } finally {
                 loader.classList.add("hidden");
             }
