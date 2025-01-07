@@ -85,21 +85,26 @@ export default async function handler(req, res) {
       `tencentarc/photomaker-style:${modelVersion}`,
       { input }
     );
-    console.log("Replicate API response:", output);
+    console.log("Creating prediction...");
+    const prediction = await replicate.predictions.create({
+      version: modelVersion,
+      input: input
+    });
 
-    if (!output || !Array.isArray(output) || output.length === 0) {
-      console.error("Invalid output from Replicate:", output);
-      throw new Error("No valid output received from model");
+    console.log("Waiting for prediction...");
+    const finalPrediction = await replicate.predictions.wait(prediction.id);
+    console.log("Final prediction:", finalPrediction);
+
+    if (finalPrediction.error) {
+      throw new Error(`Prediction failed: ${finalPrediction.error}`);
     }
 
-    // Cleanup temp file
-    try {
-      fs.unlinkSync(filePath);
-    } catch (cleanupError) {
-      console.error("Error cleaning up temp file:", cleanupError);
+    if (!finalPrediction.output || !Array.isArray(finalPrediction.output)) {
+      throw new Error("Invalid prediction output");
     }
 
-    return res.status(200).json({ images: output });
+    // Return the output URLs
+    return res.status(200).json({ images: finalPrediction.output });
 
   } catch (error) {
     console.error("Error in generate endpoint:", error);
