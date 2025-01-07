@@ -26,7 +26,6 @@ export default async function handler(req, res) {
   try {
     console.log("Starting image generation process...");
     
-    // Parse form data
     const data = await new Promise((resolve, reject) => {
       const form = formidable({
         maxFileSize: 5 * 1024 * 1024, // 5MB limit
@@ -55,7 +54,6 @@ export default async function handler(req, res) {
     const fileBuffer = fs.readFileSync(filePath);
     console.log("File buffer size:", fileBuffer.length);
 
-    // Use the direct run method with the model
     console.log("Calling Replicate API...");
     const output = await replicate.run(
       `tencentarc/photomaker-style:${modelVersion}`,
@@ -73,22 +71,45 @@ export default async function handler(req, res) {
       }
     );
 
-    console.log("Replicate API Response:", output);
-
-    // Cleanup temp file
-    try {
-      fs.unlinkSync(filePath);
-    } catch (cleanupError) {
-      console.error("Error cleaning up temp file:", cleanupError);
+    console.log("Replicate API Raw Output:", output);
+    
+    // Handle if output is a ReadableStream
+    if (output && output[0] && output[0].constructor.name === 'ReadableStream') {
+      // Convert stream to string
+      const reader = output[0].getReader();
+      let result = '';
+      
+      while (true) {
+        const {done, value} = await reader.read();
+        if (done) break;
+        result += new TextDecoder().decode(value);
+      }
+      
+      try {
+        // Try to parse the result as JSON if it's a string
+        const parsedResult = JSON.parse(result);
+        console.log("Parsed stream result:", parsedResult);
+        return res.status(200).json({ images: parsedResult });
+      } catch (e) {
+        // If it's not JSON, assume it's a URL string
+        console.log("Stream result as URL:", result);
+        return res.status(200).json({ images: [result] });
+      }
     }
 
-    if (!output || !Array.isArray(output)) {
-      console.error("Invalid output format:", output);
-      throw new Error("Invalid response from image generation API");
+    // Handle regular array response
+    if (Array.isArray(output)) {
+      console.log("Array output:", output);
+      return res.status(200).json({ images: output });
     }
 
-    return res.status(200).json({ images: output });
-// dummy comment
+    // If we get here, something unexpected happened
+    console.error("Unexpected output format:", output);
+    return res.status(500).json({ 
+      error: "Unexpected response format from image generation API",
+      details: output 
+    });
+
   } catch (error) {
     console.error("Error in generate endpoint:", error);
     return res.status(500).json({ 
