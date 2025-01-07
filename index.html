@@ -82,7 +82,7 @@
                 }
 
                 const data = await response.json();
-                console.log("API Response:", data);
+                console.log("Raw API Response:", JSON.stringify(data, null, 2));
                 
                 if (!data.images || data.images.length === 0) {
                     throw new Error("No images were generated");
