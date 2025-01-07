@@ -1,15 +1,9 @@
 {
   "name": "bobbleheads",
   "version": "1.0.0",
-  "main": "index.js",
   "scripts": {
-    "build": "echo 'No build step needed.'",
-    "vercel-build": "npm run build"
+    "build": "echo 'No build step needed.'"
   },
-  "keywords": [],
-  "author": "",
-  "license": "ISC",
-  "description": "",
   "dependencies": {
     "replicate": "1.0.1"
   }

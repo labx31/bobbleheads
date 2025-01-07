@@ -19,22 +19,23 @@ body {
     text-align: center;
   }
   
-  .description {
-    text-align: center;
-    color: #555;
-  }
-  
   .input-section {
-    margin-bottom: 1rem;
+    margin: 1rem 0;
   }
   
-  .input-label {
+  label {
     display: block;
     font-weight: bold;
-    margin-bottom: 0.5rem;
+    margin-bottom: 0.4rem;
   }
   
-  #generateBtn {
+  input, select {
+    width: 100%;
+    padding: 0.5rem;
+    box-sizing: border-box;
+  }
+  
+  button {
     display: inline-block;
     padding: 0.75rem 1.5rem;
     cursor: pointer;
@@ -42,14 +43,15 @@ body {
     color: #fff;
     border: none;
     border-radius: 4px;
+    margin-top: 1rem;
     font-size: 1rem;
   }
   
-  #generateBtn:hover {
+  button:hover {
     background: #0059c3;
   }
   
-  #loader {
+  .loader {
     margin: 1rem auto;
     border: 6px solid #f3f3f3;
     border-top: 6px solid #0070f3;

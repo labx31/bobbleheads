@@ -6,140 +6,113 @@
   <link rel="stylesheet" href="styles.css" />
 </head>
 <body>
-
   <div class="container">
     <h1>Bobblehead Generator</h1>
+    <p>Upload an image (or take a selfie), then click "Generate"!</p>
 
-    <p class="description">
-      Upload an image (or take a selfie if you're on mobile). Then tap "Generate Bobblehead"!
-    </p>
+    <!-- Our upload form -->
+    <form id="uploadForm" enctype="multipart/form-data" method="post">
+      <div class="input-section">
+        <label for="imageUpload">Choose Image (or selfie)</label>
+        <input 
+          type="file"
+          id="imageUpload"
+          name="imageUpload"
+          accept="image/*"
+          capture="user"  <!-- enables camera on mobile -->
+        />
+      </div>
 
-    <!-- Image input -->
-    <div class="input-section">
-      <label for="imageUpload" class="input-label">Upload your image</label>
-      <input 
-        type="file" 
-        id="imageUpload" 
-        accept="image/*" 
-        capture="user" <!-- Allows camera capture on mobile -->
-      />
-    </div>
+      <div class="input-section">
+        <label for="prompt">Prompt (optional)</label>
+        <input
+          type="text"
+          id="prompt"
+          name="prompt"
+          placeholder="A photo of a person img"
+        />
+      </div>
 
-    <!-- Prompt input if you want to override the default "A photo of a person img" -->
-    <div class="input-section">
-      <label for="prompt" class="input-label">Custom prompt (optional)</label>
-      <input 
-        type="text" 
-        id="prompt" 
-        placeholder="A photo of a person img" 
-      />
-    </div>
+      <div class="input-section">
+        <label for="styleName">Style</label>
+        <select id="styleName" name="styleName">
+          <option value="(No style)">(No style)</option>
+          <option value="Cinematic">Cinematic</option>
+          <option value="Disney Charactor">Disney Character</option>
+          <option value="Digital Art">Digital Art</option>
+          <option value="Photographic (Default)">Photographic (Default)</option>
+          <option value="Fantasy art">Fantasy art</option>
+          <option value="Neonpunk">Neonpunk</option>
+          <option value="Enhance">Enhance</option>
+          <option value="Comic book">Comic book</option>
+          <option value="Lowpoly">Lowpoly</option>
+          <option value="Line art">Line art</option>
+        </select>
+      </div>
 
-    <!-- Style picker (optional) -->
-    <div class="input-section">
-      <label for="styleName" class="input-label">Choose a style</label>
-      <select id="styleName">
-        <option value="(No style)">(No style)</option>
-        <option value="Cinematic">Cinematic</option>
-        <option value="Disney Charactor">Disney Character</option>
-        <option value="Digital Art">Digital Art</option>
-        <option value="Photographic (Default)">Photographic (Default)</option>
-        <option value="Fantasy art">Fantasy art</option>
-        <option value="Neonpunk">Neonpunk</option>
-        <option value="Enhance">Enhance</option>
-        <option value="Comic book">Comic book</option>
-        <option value="Lowpoly">Lowpoly</option>
-        <option value="Line art">Line art</option>
-      </select>
-    </div>
+      <button type="submit">Generate</button>
+    </form>
 
-    <!-- Generate button -->
-    <button id="generateBtn">Generate Bobblehead</button>
-
-    <!-- Loader and feedback -->
     <div id="loader" class="loader hidden"></div>
     <p id="feedback"></p>
-
-    <!-- Container for generated image(s) -->
     <div id="result"></div>
   </div>
 
   <script>
-    const generateBtn = document.getElementById("generateBtn");
-    const imageUpload = document.getElementById("imageUpload");
-    const promptInput = document.getElementById("prompt");
-    const styleNameSelect = document.getElementById("styleName");
+    const form = document.getElementById("uploadForm");
     const loader = document.getElementById("loader");
     const feedback = document.getElementById("feedback");
     const result = document.getElementById("result");
 
-    generateBtn.addEventListener("click", async () => {
-      // Basic validation
-      if (!imageUpload.files[0]) {
-        alert("Please upload an image first!");
+    form.addEventListener("submit", async (e) => {
+      e.preventDefault();
+
+      // Clear feedback / result
+      feedback.textContent = "";
+      result.innerHTML = "";
+
+      // Basic check
+      const fileInput = document.getElementById("imageUpload");
+      if (!fileInput.files[0]) {
+        alert("Please select an image first.");
         return;
       }
 
-      // Show loader
       loader.classList.remove("hidden");
       feedback.textContent = "Generating your bobblehead...";
 
       try {
-        // Convert image to base64 so we can send it to the serverless function
-        const file = imageUpload.files[0];
-        const base64 = await fileToBase64(file);
+        // Build multipart form data
+        const formData = new FormData(form);
 
-        // Gather inputs
-        const promptValue = promptInput.value.trim() || "A photo of a person img";
-        const styleName = styleNameSelect.value;
-
-        // POST data to serverless function
+        // POST to /api/generate
         const response = await fetch("/api/generate", {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            input_image_dataurl: base64,
-            prompt: promptValue,
-            style_name: styleName
-          }),
+          body: formData,
         });
 
         if (!response.ok) {
-          throw new Error("Network response was not OK");
+          throw new Error("Server returned a non-OK response.");
         }
 
         const { images } = await response.json();
-
-        // Clear previous result
-        result.innerHTML = "";
-        
-        // Display returned images
-        images.forEach((imgUrl) => {
+        // Display generated images
+        images.forEach((url) => {
           const imgEl = document.createElement("img");
-          imgEl.src = imgUrl;
+          imgEl.src = url;
           imgEl.alt = "Generated Bobblehead";
           imgEl.className = "output-image";
           result.appendChild(imgEl);
         });
-        
+
         feedback.textContent = "Done!";
       } catch (err) {
+        feedback.textContent = "Error generating image.";
         console.error(err);
-        feedback.textContent = "Oops! Something went wrong.";
       } finally {
         loader.classList.add("hidden");
       }
     });
-
-    // Helper to convert a File to a base64-encoded Data URL
-    function fileToBase64(file) {
-      return new Promise((resolve, reject) => {
-        const reader = new FileReader();
-        reader.onload = () => resolve(reader.result);
-        reader.onerror = (error) => reject(error);
-        reader.readAsDataURL(file);
-      });
-    }
   </script>
 </body>
 </html>
