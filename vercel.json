@@ -1,9 +1,10 @@
 {
-    "routes": [
-      {
-        "src": "/",
-        "dest": "/index.html"
+    "functions": {
+      "api/generate.js": {
+        "runtime": "vercel/node"
       }
-    ]
+    },
+    "buildCommand": "npm run vercel-build",
+    "outputDirectory": "."
   }
   
