@@ -51,7 +51,7 @@ export default async function handler(req, res) {
     const base64Image = `data:${file.mimetype};base64,${fileBuffer.toString('base64')}`;
 
     console.log("Calling Replicate API...");
-    const output = await replicate.run(
+    const outputStream = await replicate.run(
       `tencentarc/photomaker-style:${modelVersion}`,
       {
         input: {
@@ -67,7 +67,17 @@ export default async function handler(req, res) {
       }
     );
 
-    console.log("Replicate API Response:", output);
+    console.log("Replicate API Response (Stream):", outputStream);
+
+    // Consume the ReadableStream and convert to buffer
+    const chunks = [];
+    for await (const chunk of outputStream) {
+      chunks.push(chunk);
+    }
+    const imageBuffer = Buffer.concat(chunks);
+
+    // Convert the buffer to base64
+    const base64ImageString = `data:image/png;base64,${imageBuffer.toString('base64')}`;
 
     // Cleanup temp file
     try {
@@ -76,16 +86,7 @@ export default async function handler(req, res) {
       console.error("Error cleaning up temp file:", cleanupError);
     }
 
-    if (!output || !Array.isArray(output)) {
-      console.error("Invalid output format:", output);
-      throw new Error("Invalid response from image generation API");
-    }
-
-    const base64Images = output.map(imageBuffer => {
-      return `data:image/png;base64,${imageBuffer.toString('base64')}`;
-    });
-
-    return res.status(200).json({ images: base64Images });
+    return res.status(200).json({ images: [base64ImageString] });
 
   } catch (error) {
     console.error("Error in generate endpoint:", error);
