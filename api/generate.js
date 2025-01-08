@@ -22,11 +22,11 @@ export default async function handler(req, res) {
   try {
     console.log("Starting image generation process...");
 
-    // Parse the form data to get the image file
     const data = await new Promise((resolve, reject) => {
       const form = formidable({
         maxFileSize: 5 * 1024 * 1024, // 5MB limit
       });
+
       form.parse(req, (err, fields, files) => {
         if (err) {
           console.error("Form parsing error:", err);
@@ -53,18 +53,27 @@ export default async function handler(req, res) {
     const fileBuffer = fs.readFileSync(filePath);
     const base64Image = `data:${file.mimetype};base64,${fileBuffer.toString('base64')}`;
 
-    console.log("Calling Replicate API with base64 image...");
+    console.log("Calling Replicate API with input:", {
+      prompt: "Full body bobblehead on display stand, tiny body with oversized head, collectible toy photography, full figure visible from head to toe, standing pose, detailed facial features, solid white background, 3D rendered, glossy finish, img",
+      num_steps: 45,
+      style_name: "(No style)",
+      input_image: base64Image,
+      num_outputs: 1,
+      guidance_scale: 8,
+      negative_prompt: "cropped, partial figure, headshot only, bust only, shoulders only, cutoff body, realistic proportions, photorealistic, blurry, distorted features, double head, low quality, grainy, multiple heads, text, watermark",
+      style_strength_ratio: 15
+    });
 
     let output;
     try {
-      const replicateResponse = await replicate.run(
+      output = await replicate.run(
         `tencentarc/photomaker-style:${modelVersion}`,
         {
           input: {
             prompt: "Full body bobblehead on display stand, tiny body with oversized head, collectible toy photography, full figure visible from head to toe, standing pose, detailed facial features, solid white background, 3D rendered, glossy finish, img",
             num_steps: 45,
             style_name: "(No style)",
-            input_image: base64Image, // Send the base64 encoded image
+            input_image: base64Image,
             num_outputs: 1,
             guidance_scale: 8,
             negative_prompt: "cropped, partial figure, headshot only, bust only, shoulders only, cutoff body, realistic proportions, photorealistic, blurry, distorted features, double head, low quality, grainy, multiple heads, text, watermark",
@@ -72,16 +81,7 @@ export default async function handler(req, res) {
           }
         }
       );
-
-      // Process the ReadableStream from Replicate
-      const chunks = [];
-      for await (const chunk of replicateResponse) {
-        chunks.push(chunk);
-      }
-      const responseString = Buffer.concat(chunks).toString();
-      output = JSON.parse(responseString);
-
-      console.log("Replicate API Response (parsed):", output);
+      console.log("Replicate API Response:", output);
     } catch (replicateError) {
       console.error("Error calling Replicate API:", replicateError);
       return res.status(500).json({
@@ -97,10 +97,10 @@ export default async function handler(req, res) {
       console.error("Error cleaning up temp file:", cleanupError);
     }
 
-    if (!output || !Array.isArray(output)) {
+    if (!output || !Array.isArray(output) || output.length === 0) {
       console.error("Invalid or empty output from Replicate API:", output);
       return res.status(500).json({
-        error: "Image generation failed or returned an unexpected result.",
+        error: "Image generation failed or returned an empty result.",
       });
     }
 
