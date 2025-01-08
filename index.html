@@ -14,7 +14,7 @@
         <form id="uploadForm" enctype="multipart/form-data">
             <div class="input-section">
                 <label for="imageUpload">Choose Image (or selfie)</label>
-                <input 
+                <input
                     type="file"
                     id="imageUpload"
                     name="imageUpload"
@@ -78,20 +78,20 @@
                 });
 
                 if (!response.ok) {
-                    throw new Error("Server returned a non-OK response.");
+                    throw new Error(`Server returned a non-OK response: ${response.status} ${response.statusText}`);
                 }
 
                 const data = await response.json();
                 console.log("Raw API Response:", JSON.stringify(data, null, 2));
-                
+
                 if (!data.images || data.images.length === 0) {
                     throw new Error("No images were generated");
                 }
 
-                console.log("Generated image URLs:", data.images);
-                data.images.forEach((url) => {
+                console.log("Generated image data:", data.images);
+                data.images.forEach((base64Data) => { // Expecting Base64 data
                     const imgEl = document.createElement("img");
-                    imgEl.src = url;
+                    imgEl.src = base64Data; // Set src to the Base64 data URI
                     imgEl.alt = "Generated Bobblehead";
                     imgEl.className = "output-image";
                     result.appendChild(imgEl);
@@ -102,7 +102,7 @@
                 const errorMessage = err.message || "Error generating image. Please try again.";
                 feedback.textContent = errorMessage;
                 console.error("Error details:", err);
-                
+
                 // If we got a response from the server, log its content
                 if (err.response) {
                     try {
