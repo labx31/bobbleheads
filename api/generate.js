@@ -47,19 +47,18 @@ export default async function handler(req, res) {
     });
 
     const filePath = file.filepath;
-    // Convert file to base64
     const fileBuffer = fs.readFileSync(filePath);
     const base64Image = `data:${file.mimetype};base64,${fileBuffer.toString('base64')}`;
 
     console.log("Calling Replicate API...");
-    const prediction = await replicate.run(
+    const output = await replicate.run(
       `tencentarc/photomaker-style:${modelVersion}`,
       {
         input: {
           prompt: "Full body bobblehead on display stand, tiny body with oversized head, collectible toy photography, full figure visible from head to toe, standing pose, detailed facial features, solid white background, 3D rendered, glossy finish, img",
           num_steps: 45,
           style_name: "(No style)",
-          input_image: base64Image,  // Send as base64 data URI
+          input_image: base64Image,
           num_outputs: 1,
           guidance_scale: 8,
           negative_prompt: "cropped, partial figure, headshot only, bust only, shoulders only, cutoff body, realistic proportions, photorealistic, blurry, distorted features, double head, low quality, grainy, multiple heads, text, watermark",
@@ -68,7 +67,7 @@ export default async function handler(req, res) {
       }
     );
 
-    console.log("Replicate API Response:", prediction);
+    console.log("Replicate API Response:", output);
 
     // Cleanup temp file
     try {
@@ -77,12 +76,16 @@ export default async function handler(req, res) {
       console.error("Error cleaning up temp file:", cleanupError);
     }
 
-    if (!prediction || !Array.isArray(prediction)) {
-      console.error("Invalid output format:", prediction);
+    if (!output || !Array.isArray(output)) {
+      console.error("Invalid output format:", output);
       throw new Error("Invalid response from image generation API");
     }
 
-    return res.status(200).json({ images: prediction });
+    const base64Images = output.map(imageBuffer => {
+      return `data:image/png;base64,${imageBuffer.toString('base64')}`;
+    });
+
+    return res.status(200).json({ images: base64Images });
 
   } catch (error) {
     console.error("Error in generate endpoint:", error);
