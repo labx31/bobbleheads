@@ -22,11 +22,44 @@ export default async function handler(req, res) {
   try {
     console.log("Starting image generation process...");
 
+    // Process the ReadableStream from Replicate FIRST
+    let replicateResponseString = '';
+    try {
+      const replicateResponse = await replicate.run(
+        `tencentarc/photomaker-style:${modelVersion}`,
+        {
+          input: {
+            prompt: "Full body bobblehead on display stand, tiny body with oversized head, collectible toy photography, full figure visible from head to toe, standing pose, detailed facial features, solid white background, 3D rendered, glossy finish, img",
+            num_steps: 45,
+            style_name: "(No style)",
+            input_image: req, // Pass the request directly
+            num_outputs: 1,
+            guidance_scale: 8,
+            negative_prompt: "cropped, partial figure, headshot only, bust only, shoulders only, cutoff body, realistic proportions, photorealistic, blurry, distorted features, double head, low quality, grainy, multiple heads, text, watermark",
+            style_strength_ratio: 15
+          }
+        }
+      );
+
+      const chunks = [];
+      for await (const chunk of replicateResponse) {
+        chunks.push(chunk);
+      }
+      replicateResponseString = Buffer.concat(chunks).toString();
+      console.log("Replicate API Response (raw):", replicateResponseString);
+    } catch (replicateError) {
+      console.error("Error calling Replicate API:", replicateError);
+      return res.status(500).json({
+        error: "Error communicating with the image generation service",
+        details: replicateError.message || replicateError.toString(),
+      });
+    }
+
+    // THEN parse the form data
     const data = await new Promise((resolve, reject) => {
       const form = formidable({
         maxFileSize: 5 * 1024 * 1024, // 5MB limit
       });
-
       form.parse(req, (err, fields, files) => {
         if (err) {
           console.error("Form parsing error:", err);
@@ -53,50 +86,13 @@ export default async function handler(req, res) {
     const fileBuffer = fs.readFileSync(filePath);
     const base64Image = `data:${file.mimetype};base64,${fileBuffer.toString('base64')}`;
 
-    console.log("Calling Replicate API with input:", {
-      prompt: "Full body bobblehead on display stand, tiny body with oversized head, collectible toy photography, full figure visible from head to toe, standing pose, detailed facial features, solid white background, 3D rendered, glossy finish, img",
-      num_steps: 45,
-      style_name: "(No style)",
-      input_image: base64Image,
-      num_outputs: 1,
-      guidance_scale: 8,
-      negative_prompt: "cropped, partial figure, headshot only, bust only, shoulders only, cutoff body, realistic proportions, photorealistic, blurry, distorted features, double head, low quality, grainy, multiple heads, text, watermark",
-      style_strength_ratio: 15
-    });
-
     let output;
     try {
-      const response = await replicate.run(
-        `tencentarc/photomaker-style:${modelVersion}`,
-        {
-          input: {
-            prompt: "Full body bobblehead on display stand, tiny body with oversized head, collectible toy photography, full figure visible from head to toe, standing pose, detailed facial features, solid white background, 3D rendered, glossy finish, img",
-            num_steps: 45,
-            style_name: "(No style)",
-            input_image: base64Image,
-            num_outputs: 1,
-            guidance_scale: 8,
-            negative_prompt: "cropped, partial figure, headshot only, bust only, shoulders only, cutoff body, realistic proportions, photorealistic, blurry, distorted features, double head, low quality, grainy, multiple heads, text, watermark",
-            style_strength_ratio: 15
-          }
-        }
-      );
-
-      // Handle the ReadableStream
-      const chunks = [];
-      for await (const chunk of response) {
-        chunks.push(chunk);
-      }
-      const responseString = Buffer.concat(chunks).toString();
-      output = JSON.parse(responseString);
-
+      output = JSON.parse(replicateResponseString);
       console.log("Replicate API Response (parsed):", output);
-    } catch (replicateError) {
-      console.error("Error calling Replicate API:", replicateError);
-      return res.status(500).json({
-        error: "Error communicating with the image generation service",
-        details: replicateError.message || replicateError.toString(),
-      });
+    } catch (jsonError) {
+      console.error("Error parsing Replicate API response:", jsonError);
+      return res.status(500).json({ error: "Error parsing image data" });
     }
 
     // Cleanup temp file
