@@ -69,15 +69,20 @@ export default async function handler(req, res) {
 
     console.log("Replicate API Response (Stream):", outputStream);
 
-    // Consume the ReadableStream and convert to buffer
-    const chunks = [];
+    let base64ImageString = "";
     for await (const chunk of outputStream) {
-      chunks.push(chunk);
+      if (chunk instanceof Buffer) { // Handle direct Buffer chunks (less likely but possible)
+        base64ImageString += chunk.toString('base64');
+      } else if (chunk && chunk.hasOwnProperty('data') && chunk.data instanceof Buffer) {
+        // Handle FileOutput-like objects with a data property
+        base64ImageString += chunk.data.toString('base64');
+      } else {
+        console.error("Unexpected chunk type:", chunk);
+        throw new Error("Unexpected data format in stream");
+      }
     }
-    const imageBuffer = Buffer.concat(chunks);
 
-    // Convert the buffer to base64
-    const base64ImageString = `data:image/png;base64,${imageBuffer.toString('base64')}`;
+    const fullBase64Image = `data:image/png;base64,${base64ImageString}`;
 
     // Cleanup temp file
     try {
@@ -86,7 +91,7 @@ export default async function handler(req, res) {
       console.error("Error cleaning up temp file:", cleanupError);
     }
 
-    return res.status(200).json({ images: [base64ImageString] });
+    return res.status(200).json({ images: [fullBase64Image] });
 
   } catch (error) {
     console.error("Error in generate endpoint:", error);
