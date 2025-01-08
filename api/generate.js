@@ -48,19 +48,18 @@ export default async function handler(req, res) {
         });
 
         const filePath = file.filepath;
-        // Convert file to base64
         const fileBuffer = fs.readFileSync(filePath);
         const base64Image = `data:${file.mimetype};base64,${fileBuffer.toString('base64')}`;
 
         console.log("Calling Replicate API...");
-        const output = await replicate.run(
+        const outputStream = await replicate.run(
             `tencentarc/photomaker-style:${modelVersion}`,
             {
                 input: {
                     prompt: "Full body bobblehead on display stand, tiny body with oversized head, collectible toy photography, full figure visible from head to toe, standing pose, detailed facial features, solid white background, 3D rendered, glossy finish, img",
                     num_steps: 45,
                     style_name: "(No style)",
-                    input_image: base64Image,  // Send as base64 data URI
+                    input_image: base64Image,
                     num_outputs: 1,
                     guidance_scale: 8,
                     negative_prompt: "cropped, partial figure, headshot only, bust only, shoulders only, cutoff body, realistic proportions, photorealistic, blurry, distorted features, double head, low quality, grainy, multiple heads, text, watermark",
@@ -69,7 +68,14 @@ export default async function handler(req, res) {
             }
         );
 
-        console.log("Replicate API Response:", output);
+        console.log("Replicate API Response (Stream):", outputStream);
+
+        const chunks = [];
+        for await (const chunk of outputStream) {
+            chunks.push(chunk);
+        }
+        const imageBuffer = Buffer.concat(chunks);
+        const generatedImageBase64 = `data:image/png;base64,${imageBuffer.toString('base64')}`; // Assuming PNG, adjust if needed
 
         // Cleanup temp file
         try {
@@ -78,12 +84,7 @@ export default async function handler(req, res) {
             console.error("Error cleaning up temp file:", cleanupError);
         }
 
-        if (!output || !Array.isArray(output)) {
-            console.error("Invalid output format:", output);
-            throw new Error("Invalid response from image generation API");
-        }
-
-        return res.status(200).json({ images: output });
+        return res.status(200).json({ images: [generatedImageBase64] });
 
     } catch (error) {
         console.error("Error in generate endpoint:", error);
