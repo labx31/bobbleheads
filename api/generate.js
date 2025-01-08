@@ -1,3 +1,4 @@
+// api/generate.js
 import Replicate from "replicate";
 import formidable from "formidable";
 import fs from "fs";
@@ -28,10 +29,7 @@ export default async function handler(req, res) {
       });
 
       form.parse(req, (err, fields, files) => {
-        if (err) {
-          console.error("Form parsing error:", err);
-          return reject(err);
-        }
+        if (err) return reject(err);
         resolve({ fields, files });
       });
     });
@@ -46,7 +44,7 @@ export default async function handler(req, res) {
     console.log("File received:", {
       name: file.originalFilename,
       type: file.mimetype,
-      size: file.size,
+      size: file.size
     });
 
     const filePath = file.filepath;
@@ -83,11 +81,8 @@ export default async function handler(req, res) {
       );
       console.log("Replicate API Response:", output);
     } catch (replicateError) {
-      console.error("Error calling Replicate API:", replicateError);
-      return res.status(500).json({
-        error: "Error communicating with the image generation service",
-        details: replicateError.message || replicateError.toString(),
-      });
+      console.error("Error from Replicate API:", replicateError);
+      return res.status(500).json({ error: "Error communicating with the image generation service", details: replicateError.message });
     }
 
     // Cleanup temp file
@@ -99,9 +94,7 @@ export default async function handler(req, res) {
 
     if (!output || !Array.isArray(output) || output.length === 0) {
       console.error("Invalid or empty output from Replicate API:", output);
-      return res.status(500).json({
-        error: "Image generation failed or returned an empty result.",
-      });
+      return res.status(500).json({ error: "Image generation failed", details: "Received invalid data from the image generation service." });
     }
 
     return res.status(200).json({ images: output });
@@ -110,7 +103,7 @@ export default async function handler(req, res) {
     console.error("Error in generate endpoint:", error);
     return res.status(500).json({
       error: "Error generating image",
-      details: error.message,
+      details: error.message
     });
   }
 }
