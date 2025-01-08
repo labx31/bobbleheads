@@ -66,7 +66,7 @@ export default async function handler(req, res) {
 
     let output;
     try {
-      output = await replicate.run(
+      const response = await replicate.run(
         `tencentarc/photomaker-style:${modelVersion}`,
         {
           input: {
@@ -81,7 +81,16 @@ export default async function handler(req, res) {
           }
         }
       );
-      console.log("Replicate API Response:", output);
+
+      // Handle the ReadableStream
+      const chunks = [];
+      for await (const chunk of response) {
+        chunks.push(chunk);
+      }
+      const responseString = Buffer.concat(chunks).toString();
+      output = JSON.parse(responseString);
+
+      console.log("Replicate API Response (parsed):", output);
     } catch (replicateError) {
       console.error("Error calling Replicate API:", replicateError);
       return res.status(500).json({
@@ -97,10 +106,10 @@ export default async function handler(req, res) {
       console.error("Error cleaning up temp file:", cleanupError);
     }
 
-    if (!output || !Array.isArray(output) || output.length === 0) {
+    if (!output || !Array.isArray(output)) {
       console.error("Invalid or empty output from Replicate API:", output);
       return res.status(500).json({
-        error: "Image generation failed or returned an empty result.",
+        error: "Image generation failed or returned an unexpected result.",
       });
     }
 
